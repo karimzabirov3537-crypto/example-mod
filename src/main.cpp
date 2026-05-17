@@ -1,21 +1,19 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
+#include <string>
 
 using namespace geode::prelude;
 
 bool g_isNoclipActive = false;
 bool g_isWaitingForDecision = false;
 
-// Класс-делегат, обрабатывающий кнопки "Да" или "Нет"
 class DeathDecisionDelegate : public FLAlertLayerProtocol {
 public:
     void FLAlert_Clicked(FLAlertLayer* layer, bool btn2) override {
         if (btn2) {
-            // Игрок выбрал "Да" -> включаем бессмертие
             g_isNoclipActive = true;
-            Notification::create("Saved! Noclip for 5 seconds!", NotificationIcon::Success)->show();
+            Notification::create("Saved! Noclip active!", NotificationIcon::Success)->show();
 
-            // Создаем отдельный поток-таймер для отключения флага через 5 секунд
             std::thread([]() {
                 std::this_thread::sleep_for(std::chrono::seconds(5));
                 geode::Loader::get()->queueInMainThread([]() {
@@ -25,7 +23,6 @@ public:
             }).detach();
 
         } else {
-            // Игрок выбрал "Нет" -> позволяем ему умереть
             g_isNoclipActive = false;
             g_isWaitingForDecision = false;
             if (auto pl = PlayLayer::get()) {
@@ -40,20 +37,22 @@ static DeathDecisionDelegate g_deathDelegate;
 
 class $modify(MyPlayLayer, PlayLayer) {
     void destroyPlayer(PlayerObject* player, GameObject* obj) {
-        // Если ноуклип уже запущен — игнорируем любой урон
         if (g_isNoclipActive) return;
-
-        // Если окно выбора уже висит — не спамим им при повторных касаниях блоков
         if (g_isWaitingForDecision) return;
         g_isWaitingForDecision = true;
 
-        // Открываем окно. Строки сделали максимально простыми без лишних тегов
+        // Явно создаем объекты std::string, чтобы библиотека fmt не трогала эти строки
+        std::string title = "Are you sure?";
+        std::string description = "Do you really want to die?";
+        std::string btn1 = "No";
+        std::string btn2 = "Yes";
+
         auto alert = FLAlertLayer::create(
             &g_deathDelegate, 
-            "Are you sure?", 
-            "Do you really want to die?", 
-            "No", 
-            "Yes",  
+            title.c_str(), 
+            description.c_str(), 
+            btn1.c_str(), 
+            btn2.c_str(), 
             300.f
         );
         alert->show();
