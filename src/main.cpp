@@ -5,25 +5,18 @@ using namespace geode::prelude;
 
 bool g_isNoclipActive = false;
 bool g_isWaitingForDecision = false;
+float g_noclipTimer = 0.0f; // Переменная для отсчета времени
 
-// Безопасный делегат без лишних перегрузок
 class DeathDecisionDelegate : public FLAlertLayerProtocol {
 public:
     void FLAlert_Clicked(FLAlertLayer* layer, bool btn2) override {
         if (btn2) {
-            // Игрок выбрал "Yes" -> даем ноуклип
+            // Игрок выбрал "Yes" -> даем ноуклип и взводим таймер на 5 секунд
             g_isNoclipActive = true;
-            Notification::create("Saved! Noclip active!", NotificationIcon::Success)->show();
-
-            // Родной таймер Cocos2d-x вместо std::thread — никогда не крашит Android
-            auto pl = PlayLayer::get();
-            if (pl) {
-                auto delay = cocos2d::CCDelayTime::create(5.0f);
-                auto callback = cocos2d::CCCallFunc::create(pl, callfunc_selector(DeathDecisionDelegate::disableNoclip));
-                pl->runAction(cocos2d::CCSequence::create(delay, callback, nullptr));
-            }
+            g_noclipTimer = 5.0f;
+            Notification::create("Saved! Noclip active for 5s!", NotificationIcon::Success)->show();
         } else {
-            // Игрок выбрал "No" -> принудительно убиваем его
+            // Игрок выбрал "No" -> позволяем ему умереть
             g_isNoclipActive = false;
             g_isWaitingForDecision = false;
             if (auto pl = PlayLayer::get()) {
@@ -32,24 +25,30 @@ public:
         }
         g_isWaitingForDecision = false;
     }
-
-    // Метод выключения, который вызовется экшеном Cocos2d
-    static void disableNoclip() {
-        g_isNoclipActive = false;
-        Notification::create("Noclip deactivated!", NotificationIcon::Warning)->show();
-    }
 };
 
 static DeathDecisionDelegate g_deathDelegate;
 
 class $modify(MyPlayLayer, PlayLayer) {
+    // Хукаем игровой цикл обновления кадра, чтобы безопасно отсчитывать секунды
+    void update(float dt) {
+        PlayLayer::update(dt);
+
+        // Если ноуклип активен, уменьшаем таймер на дельта-тайм кадра
+        if (g_isNoclipActive) {
+            g_noclipTimer -= dt;
+            if (g_noclipTimer <= 0.0f) {
+                g_isNoclipActive = false;
+                Notification::create("Noclip deactivated!", NotificationIcon::Warning)->show();
+            }
+        }
+    }
+
     void destroyPlayer(PlayerObject* player, GameObject* obj) {
         if (g_isNoclipActive) return;
         if (g_isWaitingForDecision) return;
         g_isWaitingForDecision = true;
 
-        // Защищаем макрос FLAlertLayer::create от fmt. 
-        // Передаем пустые скобки {}, чтобы компилятор не пытался форматировать текст.
         auto alert = FLAlertLayer::create(
             &g_deathDelegate, 
             "Are you sure?", 
