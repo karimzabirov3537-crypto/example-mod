@@ -6,25 +6,26 @@ using namespace geode::prelude;
 bool g_isNoclipActive = false;
 bool g_isWaitingForDecision = false;
 
-// Класс-делегат для обработки нажатий кнопок в окне
+// Класс-делегат, обрабатывающий кнопки "Да" или "Нет"
 class DeathDecisionDelegate : public FLAlertLayerProtocol {
 public:
     void FLAlert_Clicked(FLAlertLayer* layer, bool btn2) override {
         if (btn2) {
-            // Игрок нажал "Да" -> включаем ноуклип
+            // Игрок выбрал "Да" -> включаем бессмертие
             g_isNoclipActive = true;
-            Notification::create("Засейвлен! 5 секунд ноуклипа!", NotificationIcon::Success)->show();
+            Notification::create("Saved! Noclip for 5 seconds!", NotificationIcon::Success)->show();
 
-            // Создаем безопасную задержку на 5 секунд прямо через экшен Cocos2d
-            if (auto pl = PlayLayer::get()) {
-                auto delay = cocos2d::CCDelayTime::create(5.0f);
-                auto callback = cocos2d::CCCallFunc::create(pl, callfunc_selector(DeathDecisionDelegate::onTimerEnd));
-                
-                // Запускаем последовательность действий на объекте PlayLayer
-                pl->runAction(cocos2d::CCSequence::create(delay, callback, nullptr));
-            }
+            // Создаем отдельный поток-таймер для отключения флага через 5 секунд
+            std::thread([]() {
+                std::this_thread::sleep_for(std::chrono::seconds(5));
+                geode::Loader::get()->queueInMainThread([]() {
+                    g_isNoclipActive = false;
+                    Notification::create("Noclip deactivated!", NotificationIcon::Warning)->show();
+                });
+            }).detach();
+
         } else {
-            // Игрок нажал "Нет" -> сбрасываем флаги и убиваем
+            // Игрок выбрал "Нет" -> позволяем ему умереть
             g_isNoclipActive = false;
             g_isWaitingForDecision = false;
             if (auto pl = PlayLayer::get()) {
@@ -33,32 +34,26 @@ public:
         }
         g_isWaitingForDecision = false;
     }
-
-    // Функция, которая вызовется через 5 секунд действия экшена
-    void onTimerEnd() {
-        g_isNoclipActive = false;
-        Notification::create("Ноуклип кончился, аккуратно!", NotificationIcon::Warning)->show();
-    }
 };
 
 static DeathDecisionDelegate g_deathDelegate;
 
 class $modify(MyPlayLayer, PlayLayer) {
     void destroyPlayer(PlayerObject* player, GameObject* obj) {
-        // Если ноуклип активен — игнорируем урон
+        // Если ноуклип уже запущен — игнорируем любой урон
         if (g_isNoclipActive) return;
 
-        // Если окно выбора уже открыто — ничего не делаем
+        // Если окно выбора уже висит — не спамим им при повторных касаниях блоков
         if (g_isWaitingForDecision) return;
         g_isWaitingForDecision = true;
 
-        // Показываем кастомное окно Geode / Geometry Dash
+        // Открываем окно. Строки сделали максимально простыми без лишних тегов
         auto alert = FLAlertLayer::create(
             &g_deathDelegate, 
-            "Вы точно?", 
-            "Вы уверены, что хотите <cr>умереть</c>?", 
-            "Нет", // Лямбда вернет btn2 = false
-            "Да",  // Лямбда вернет btn2 = true
+            "Are you sure?", 
+            "Do you really want to die?", 
+            "No", 
+            "Yes",  
             300.f
         );
         alert->show();
