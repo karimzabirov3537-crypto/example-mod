@@ -4,19 +4,12 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        config:
-          - name: Android
-            os: ubuntu-latest
-            target: Android
-
-    name: ${{ matrix.config.name }}
-    runs-on: ${{ matrix.config.os }}
+    name: Build Android Mod
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -24,5 +17,12 @@ jobs:
       - name: Build Mod
         uses: geode-sdk/build-geode-mod@main
         with:
-          target: ${{ matrix.config.target }}
+          target: Android
+          combine: true
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: geode-mod-android
+          path: build/*.geode
           
