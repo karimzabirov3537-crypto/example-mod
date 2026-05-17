@@ -17,9 +17,6 @@ jobs:
       - name: Build Mod
         uses: geode-sdk/build-geode-mod@main
         with:
-          # Пишем строго платформы списком через дефис, как в документации
-          platforms: |
-            - Android32
-            - Android64
+          platform: Android   # Одиночное число, без буквы 's' на конце!
           combine: true
           
