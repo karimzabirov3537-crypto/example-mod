@@ -17,8 +17,6 @@ jobs:
       - name: Build Mod
         uses: geode-sdk/build-geode-mod@main
         with:
-          # Передаем платформу напрямую компилятору CMake, минуя капризные инпуты экшена
-          configure-args: "-DGEODE_TARGET_PLATFORM=Android"
           combine: true
 
       - name: Upload Artifact
