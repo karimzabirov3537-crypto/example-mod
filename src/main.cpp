@@ -1,6 +1,5 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
-#include <string>
 
 using namespace geode::prelude;
 
@@ -41,20 +40,17 @@ class $modify(MyPlayLayer, PlayLayer) {
         if (g_isWaitingForDecision) return;
         g_isWaitingForDecision = true;
 
-        // Явно создаем объекты std::string, чтобы библиотека fmt не трогала эти строки
-        std::string title = "Are you sure?";
-        std::string description = "Do you really want to die?";
-        std::string btn1 = "No";
-        std::string btn2 = "Yes";
-
-        auto alert = FLAlertLayer::create(
-            &g_deathDelegate, 
-            title.c_str(), 
-            description.c_str(), 
-            btn1.c_str(), 
-            btn2.c_str(), 
-            300.f
-        );
-        alert->show();
+        // Создаем объект окна напрямую через выделение памяти, минуя макрос ::create
+        auto alert = new FLAlertLayer();
+        if (alert) {
+            // Инициализируем напрямую через метод init
+            if (alert->init(&g_deathDelegate, "Are you sure?", "Do you really want to die?", "No", "Yes", 300.f, false, nullptr, 1.f)) {
+                alert->autorelease();
+                alert->show();
+            } else {
+                delete alert;
+                g_isWaitingForDecision = false;
+            }
+        }
     }
 };
