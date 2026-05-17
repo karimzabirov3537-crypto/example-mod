@@ -14,26 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Android NDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Geode CLI
-        run: |
-          wget https://github.com
-          unzip geode-cli-v3.7.4-linux.zip -d geode-cli-dir
-          echo "$(pwd)/geode-cli-dir" >> $GITHUB_PATH
-
-      - name: Initialize Geode SDK
-        run: |
-          geode profile add --name ActionsProfile
-          # Явно указываем папку для установки, чтобы CLI не ждал нажатия Enter
-          geode sdk install --path $(pwd)/geode-sdk-dir
-
-      - name: Configure CMake & Build Mod
-        run: |
-          # Передаем CMake точный путь к установленному SDK
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DGEODE_TARGET_PLATFORM=Android -DGEODE_SDK_PATH=$(pwd)/geode-sdk-dir
-          cmake --build build --config Release
+      - name: Build Mod
+        uses: geode-sdk/build-geode-mod@v2
+        with:
+          target: Android
+          combine: true
+          cli: v3.7.4
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
