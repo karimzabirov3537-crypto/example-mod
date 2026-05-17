@@ -54,13 +54,10 @@ class $modify(MyPlayLayer, PlayLayer) {
         auto alert = FLAlertLayer::create(
             delegate,
             "Hold on...", 
-            "Are you <cr>sure</c> you want to die?", 
+            "Are you sure you want to die?", 
             "Yes", "No", 
             300.0f
         );
         alert->show();
     }
 };
-
-
-
