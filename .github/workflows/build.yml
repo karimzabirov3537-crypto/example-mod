@@ -17,7 +17,7 @@ jobs:
       - name: Build Mod
         uses: geode-sdk/build-geode-mod@main
         with:
-          platform: Android # Вот тут исправили target на platform!
+          target: Android
           combine: true
 
       - name: Upload Artifact
