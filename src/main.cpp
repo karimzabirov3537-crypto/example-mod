@@ -6,12 +6,31 @@ using namespace geode::prelude;
 bool g_isNoclipActive = false;
 bool g_isWaitingForDecision = false;
 
-// Опережающее объявление класса модификации, чтобы делегат о нём знал
-class MyPlayLayer;
-
 class DeathDecisionDelegate : public FLAlertLayerProtocol {
 public:
-    void FLAlert_Clicked(FLAlertLayer* layer, bool btn2) override;
+    void FLAlert_Clicked(FLAlertLayer* layer, bool btn2) override {
+        if (btn2) {
+            g_isNoclipActive = true;
+            Notification::create("Saved! Noclip active!", NotificationIcon::Success)->show();
+
+            // Безопасный асинхронный поток для таймера в Geode v3
+            std::thread([]() {
+                std::this_thread::sleep_for(std::chrono::seconds(5));
+                geode::Loader::get()->queueInMainThread([]() {
+                    g_isNoclipActive = false;
+                    Notification::create("Noclip deactivated!", NotificationIcon::Warning)->show();
+                });
+            }).detach();
+
+        } else {
+            g_isNoclipActive = false;
+            g_isWaitingForDecision = false;
+            if (auto pl = PlayLayer::get()) {
+                pl->destroyPlayer(pl->m_player1, nullptr);
+            }
+        }
+        g_isWaitingForDecision = false;
+    }
 };
 
 static DeathDecisionDelegate g_deathDelegate;
@@ -22,6 +41,8 @@ class $modify(MyPlayLayer, PlayLayer) {
         if (g_isWaitingForDecision) return;
         g_isWaitingForDecision = true;
 
+        // В Geode v3 макрос FLAlertLayer::create принимает обычные строки std::string_view,
+        // поэтому мы можем безопасно передавать их без fmt::runtime
         auto alert = FLAlertLayer::create(
             &g_deathDelegate, 
             "Are you sure?", 
@@ -37,40 +58,4 @@ class $modify(MyPlayLayer, PlayLayer) {
             g_isWaitingForDecision = false;
         }
     }
-
-    // Кастомный метод игрового класса для отключения ноуклипа
-    void onNoclipTimer(float dt) {
-        g_isNoclipActive = false;
-        Notification::create("Noclip deactivated!", NotificationIcon::Warning)->show();
-    }
 };
-
-// Реализация клика по кнопке: теперь мы безопасно вызываем таймер через MyPlayLayer
-void DeathDecisionDelegate::FLAlert_Clicked(FLAlertLayer* layer, bool btn2) {
-    if (btn2) {
-        g_isNoclipActive = true;
-        Notification::create("Saved! Noclip active!", NotificationIcon::Success)->show();
-
-        // Запускаем планировщик Cocos2d на текущем объекте PlayLayer
-        if (auto pl = PlayLayer::get()) {
-            auto scheduler = cocos2d::CCDirector::sharedDirector()->getScheduler();
-            
-            // Вызываем наш метод onNoclipTimer через 5.0 секунд
-            scheduler->scheduleSelector(
-                schedule_selector(MyPlayLayer::onNoclipTimer), 
-                pl, 
-                0.0f, 
-                0, 
-                5.0f, 
-                false
-            );
-        }
-    } else {
-        g_isNoclipActive = false;
-        g_isWaitingForDecision = false;
-        if (auto pl = PlayLayer::get()) {
-            pl->destroyPlayer(pl->m_player1, nullptr);
-        }
-    }
-    g_isWaitingForDecision = false;
-}
