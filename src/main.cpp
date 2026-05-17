@@ -12,17 +12,14 @@ class $modify(MyPlayLayer, PlayLayer) {
         Notification::create("Noclip deactivated!", NotificationIcon::Warning)->show();
     }
 
-    // Обработчик кнопки "Yes"
-    void onYesClicked(cocos2d::CCObject*) {
+    void onYesClicked(cocos2d::CCObject* sender) {
         g_isNoclipActive = true;
         Notification::create("Saved! Noclip active!", NotificationIcon::Success)->show();
 
-        // Удаляем наше кастомное окно с экрана
         if (auto layer = cocos2d::CCDirector::sharedDirector()->getRunningScene()->getChildByTag(9999)) {
             layer->removeFromParentAndCleanup(true);
         }
 
-        // Запускаем таймер на 5 секунд
         auto scheduler = cocos2d::CCDirector::sharedDirector()->getScheduler();
         scheduler->scheduleSelector(
             schedule_selector(MyPlayLayer::disableNoclip), 
@@ -33,15 +30,12 @@ class $modify(MyPlayLayer, PlayLayer) {
         g_isWaitingForDecision = false;
     }
 
-    // Обработчик кнопки "No"
-    void onNoClicked(cocos2d::CCObject*) {
+    void onNoClicked(cocos2d::CCObject* sender) {
         if (auto layer = cocos2d::CCDirector::sharedDirector()->getRunningScene()->getChildByTag(9999)) {
             layer->removeFromParentAndCleanup(true);
         }
         g_isNoclipActive = false;
         g_isWaitingForDecision = false;
-        
-        // Принудительно убиваем игрока
         this->destroyPlayer(this->m_player1, nullptr);
     }
 
@@ -53,7 +47,7 @@ class $modify(MyPlayLayer, PlayLayer) {
         auto scene = cocos2d::CCDirector::sharedDirector()->getRunningScene();
         if (!scene) return;
 
-        // Создаем чистое полупрозрачное Cocos2d-окно поверх игры (0% зависимости от Geode/fmt!)
+        // Создаем чистое полупрозрачное окно Cocos2d-x поверх игры (0% зависимости от Geode/fmt!)
         auto customAlert = cocos2d::CCLayerColor::create(cocos2d::ccc4(0, 0, 0, 180));
         customAlert->setTag(9999);
 
@@ -62,14 +56,14 @@ class $modify(MyPlayLayer, PlayLayer) {
         label->setPosition(cocos2d::CCDirector::sharedDirector()->getWinSize() / 2 + cocos2d::CCSize(0, 40));
         customAlert->addChild(label);
 
-        // Создаем кнопку "Yes"
+        // Создаем кнопку "Yes" по стандартам селекторов Android
         auto yesLabel = cocos2d::CCLabelBMFont::create("Yes", "bigFont.fnt");
-        auto yesBtn = cocos2d::CCMenuItemLabel::create(yesLabel, customAlert, cocos2d::SEL_MenuHandler(&MyPlayLayer::onYesClicked));
+        auto yesBtn = cocos2d::CCMenuItemLabel::create(yesLabel, this, menu_selector(MyPlayLayer::onYesClicked));
         yesBtn->setPosition(cocos2d::CCPoint(-60, -30));
 
-        // Создаем кнопку "No"
+        // Создаем кнопку "No" по стандартам селекторов Android
         auto noLabel = cocos2d::CCLabelBMFont::create("No", "bigFont.fnt");
-        auto noBtn = cocos2d::CCMenuItemLabel::create(noLabel, customAlert, cocos2d::SEL_MenuHandler(&MyPlayLayer::onNoClicked));
+        auto noBtn = cocos2d::CCMenuItemLabel::create(noLabel, this, menu_selector(MyPlayLayer::onNoClicked));
         noBtn->setPosition(cocos2d::CCPoint(60, -30));
 
         // Собираем меню кнопок
