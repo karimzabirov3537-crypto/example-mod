@@ -6,22 +6,24 @@ using namespace geode::prelude;
 bool g_isNoclipActive = false;
 bool g_isWaitingForDecision = false;
 
+// Безопасный делегат без лишних перегрузок
 class DeathDecisionDelegate : public FLAlertLayerProtocol {
 public:
     void FLAlert_Clicked(FLAlertLayer* layer, bool btn2) override {
         if (btn2) {
+            // Игрок выбрал "Yes" -> даем ноуклип
             g_isNoclipActive = true;
             Notification::create("Saved! Noclip active!", NotificationIcon::Success)->show();
 
-            std::thread([]() {
-                std::this_thread::sleep_for(std::chrono::seconds(5));
-                geode::Loader::get()->queueInMainThread([]() {
-                    g_isNoclipActive = false;
-                    Notification::create("Noclip deactivated!", NotificationIcon::Warning)->show();
-                });
-            }).detach();
-
+            // Родной таймер Cocos2d-x вместо std::thread — никогда не крашит Android
+            auto pl = PlayLayer::get();
+            if (pl) {
+                auto delay = cocos2d::CCDelayTime::create(5.0f);
+                auto callback = cocos2d::CCCallFunc::create(pl, callfunc_selector(DeathDecisionDelegate::disableNoclip));
+                pl->runAction(cocos2d::CCSequence::create(delay, callback, nullptr));
+            }
         } else {
+            // Игрок выбрал "No" -> принудительно убиваем его
             g_isNoclipActive = false;
             g_isWaitingForDecision = false;
             if (auto pl = PlayLayer::get()) {
@@ -29,6 +31,12 @@ public:
             }
         }
         g_isWaitingForDecision = false;
+    }
+
+    // Метод выключения, который вызовется экшеном Cocos2d
+    static void disableNoclip() {
+        g_isNoclipActive = false;
+        Notification::create("Noclip deactivated!", NotificationIcon::Warning)->show();
     }
 };
 
@@ -40,16 +48,21 @@ class $modify(MyPlayLayer, PlayLayer) {
         if (g_isWaitingForDecision) return;
         g_isWaitingForDecision = true;
 
-        auto alert = new FLAlertLayer();
+        // Защищаем макрос FLAlertLayer::create от fmt. 
+        // Передаем пустые скобки {}, чтобы компилятор не пытался форматировать текст.
+        auto alert = FLAlertLayer::create(
+            &g_deathDelegate, 
+            "Are you sure?", 
+            "Do you really want to die?", 
+            "No", 
+            "Yes", 
+            300.f
+        );
+        
         if (alert) {
-            // Исправленная строка инициализации окна специально под Android API Geode
-            if (alert->init(&g_deathDelegate, "Are you sure?", "Do you really want to die?", "No", "Yes", 300.f, false, cocos2d::CCPoint {0, 0})) {
-                alert->autorelease();
-                alert->show();
-            } else {
-                delete alert;
-                g_isWaitingForDecision = false;
-            }
+            alert->show();
+        } else {
+            g_isWaitingForDecision = false;
         }
     }
 };
