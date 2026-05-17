@@ -17,7 +17,7 @@ jobs:
       - name: Build Mod
         uses: geode-sdk/build-geode-mod@main
         with:
-          # В новом Geode SDK под Android нужно писать массивом вот так:
+          # Пишем строго платформы списком через дефис, как в документации
           platforms: |
             - Android32
             - Android64
