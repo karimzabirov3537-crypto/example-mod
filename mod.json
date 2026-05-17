@@ -1,10 +1,13 @@
 {
   "geode": "3.0.0",
-  "gd": "2.2081",
-  "id": "karimzabirov3537.example_mod",
+  "gd": {
+    "android": "2.2081"
+  },
+  "id": "karimzabirov3537.noclip_savior",
   "name": "Noclip Savior",
   "developer": "karimzabirov3537",
   "version": "1.0.0",
+  "description": "Saves you from crashing by giving 5 seconds of noclip.",
   "platforms": {
     "android": "auto"
   }
