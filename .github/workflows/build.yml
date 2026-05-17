@@ -23,10 +23,16 @@ jobs:
           unzip geode-cli-v3.7.4-linux.zip -d geode-cli-dir
           echo "$(pwd)/geode-cli-dir" >> $GITHUB_PATH
 
-      - name: Configure CMake & Build Mod
+      - name: Initialize Geode SDK
         run: |
           geode profile add --name ActionsProfile
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DGEODE_TARGET_PLATFORM=Android
+          # Явно указываем папку для установки, чтобы CLI не ждал нажатия Enter
+          geode sdk install --path $(pwd)/geode-sdk-dir
+
+      - name: Configure CMake & Build Mod
+        run: |
+          # Передаем CMake точный путь к установленному SDK
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DGEODE_TARGET_PLATFORM=Android -DGEODE_SDK_PATH=$(pwd)/geode-sdk-dir
           cmake --build build --config Release
 
       - name: Upload Artifact
