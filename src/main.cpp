@@ -40,11 +40,10 @@ class $modify(MyPlayLayer, PlayLayer) {
         if (g_isWaitingForDecision) return;
         g_isWaitingForDecision = true;
 
-        // Создаем объект окна напрямую через выделение памяти, минуя макрос ::create
         auto alert = new FLAlertLayer();
         if (alert) {
-            // Инициализируем напрямую через метод init
-            if (alert->init(&g_deathDelegate, "Are you sure?", "Do you really want to die?", "No", "Yes", 300.f, false, nullptr, 1.f)) {
+            // Исправленная строка инициализации окна специально под Android API Geode
+            if (alert->init(&g_deathDelegate, "Are you sure?", "Do you really want to die?", "No", "Yes", 300.f, false, cocos2d::CCPoint {0, 0})) {
                 alert->autorelease();
                 alert->show();
             } else {
