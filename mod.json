@@ -1,18 +1,10 @@
 {
-    "geode": "3.0.0-beta.1",
-    "gd": {
-        "win": "2.2074",
-        "android": "2.2074",
-        "mac": "2.2074",
-        "ios": "2.2074"
-    },
-    "id": "karimzabirov.death_confirmation",
-    "version": "1.0.0",
-    "name": "Are You Sure You Want To Die?",
-    "developer": "karimzabirov",
-    "description": "When you are about to die, the game asks for your permission. Saying No activates a 5-second noclip.",
-    "dependencies": {
-        "geode.node-ids": ">=v1.23.3"
-    }
+  "geode": "3.0.0",
+  "id": "karimzabirov3537.example_mod",
+  "name": "Noclip Savior",
+  "developer": "karimzabirov3537",
+  "version": "1.0.0",
+  "platforms": {
+    "android": "auto"
+  }
 }
-
