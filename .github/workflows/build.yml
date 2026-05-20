@@ -18,13 +18,11 @@ jobs:
         uses: geode-sdk/build-geode-mod@main
         with:
           combine: true
-          version: v3.0.0-beta.3
+          sdk: latest
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: geode-mod-android
           path: build/*.geode
-          
-
           
