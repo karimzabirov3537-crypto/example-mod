@@ -12,12 +12,13 @@ class $modify(MyPlayLayer, PlayLayer) {
     }
 
     void destroyPlayer(PlayerObject* player, GameObject* object) {
+        // Запускаем стандартную смерть
         PlayLayer::destroyPlayer(player, object);
 
         if (player) {
             std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
-            // 1. Рандомим цвета от 1 до 140
+            // 1. Рандомим цвета (от 1 до 140)
             int color1 = getRandomNumber(1, 140);
             int color2 = getRandomNumber(1, 140);
             
@@ -25,15 +26,14 @@ class $modify(MyPlayLayer, PlayLayer) {
             player->setColor(gm->colorForIdx(color1));
             player->setSecondColor(gm->colorForIdx(color2));
 
-            // 2. Генерируем случайный фрейм
+            // 2. Рандомим номер фрейма
             int randomFrame = getRandomNumber(1, 150);
 
-            // 3. Обновляем базовый кадр (принимает 1 аргумент)
+            // 3. Официальный метод обновления кадра из документации Geode
             player->updatePlayerFrame(randomFrame);
 
-            // 4. Ультимативный фикс бага Мегахака для Робота и Паука:
-            // updatePlayerIcons() заставит Geode полностью пересобрать текстуры всех частей тела!
-            player->updatePlayerIcons();
+            // 4. Официальный метод обновления свечения и текстур из документации Geode
+            player->updatePlayerGlow();
         }
     }
 };
