@@ -10,6 +10,10 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
 project(Template VERSION 1.0.0)
 
+# Подавить все предупреждения от сторонних библиотек (включая fmt)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w")
+
+
 # Add all source files inside src (recursively)
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
