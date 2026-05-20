@@ -13,15 +13,15 @@ class $modify(MyPlayLayer, PlayLayer) {
 
         if (g_isNoclipActive) {
             g_noclipTimer -= dt;
-            
-            // Пока ноуклип активен, делаем иконки игрока прозрачными (эффект призрака)
+
+            // Пока ноуклип активен, делаем иконки игрока прозрачными (50%)
             if (m_player1) m_player1->setOpacity(100);
             if (m_player2) m_player2->setOpacity(100);
 
             if (g_noclipTimer <= 0.0f) {
                 g_isNoclipActive = false;
-                
-                // Время вышло — возвращаем обычную полную непрозрачность
+
+                // Время вышло – возвращаем обычную полную непрозрачность (100%)
                 if (m_player1) m_player1->setOpacity(255);
                 if (m_player2) m_player2->setOpacity(255);
             }
@@ -30,7 +30,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
     // Хукаем продолжение игры после паузы
     void resumeAndStopPause() {
-        PlayLayer::resumeAndStopPause();
+        PlayLayer::resume();
 
         // Если игра была поставлена на паузу нашей смертью – активируем ноуклип
         if (g_noclipTimer == -1.0f) {
@@ -46,7 +46,7 @@ class $modify(MyPlayLayer, PlayLayer) {
         // Вместо смерти принудительно включаем стандартную игровую паузу
         if (g_noclipTimer <= 0.0f) {
             g_noclipTimer = -1.0f; // Ставим маркер, что пауза вызвана смертью
-            this->pushButton(0, true); // Вызов стандартного меню паузы
+            PlayLayer::pushButton(0, true); // Вызов стандартного меню паузы
             return;
         }
 
