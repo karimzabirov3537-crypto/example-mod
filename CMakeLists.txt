@@ -14,6 +14,7 @@ project(Template VERSION 1.0.0)
 # Подавить все предупреждения от сторонних библиотек (включая fmt)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w")
 add_compile_definitions(FMT_ENFORCE_COMPILE_STRING_CHECK=0)
+add_compile_options(-Wno-error=constexpr-not-constempty -Wno-error=invalid-constexpr)
 
 
 
