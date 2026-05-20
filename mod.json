@@ -1,16 +1,15 @@
-
 {
-  "geode": "5.7.1",
-  "gd": {
-    "win": "2.2074",
-    "android": "2.2081"
-  },
-  "id": "karimzabirov3537.noclip_savior",
-  "name": "Noclip Savior",
-  "developer": "karimzabirov3537",
-  "version": "1.0.0",
-  "description": "Saves you from crashing by giving 5 seconds of noclip.",
-  "platforms": {
-    "android": "auto"
-  }
+	"geode": "5.7.1",
+	"gd": {
+		"win": "2.2074",
+		"android": "2.2081"
+	},
+	"id": "karimzabirov3537.icon_randomizer",
+	"name": "Icon Randomizer Fix",
+	"developer": "KARIMZABIROV3537",
+	"version": "1.0.0",
+	"description": "Случайно меняет все иконки (включая Робота и Паука!) и цвета при каждой смерти.",
+	"platforms": {
+		"android": "auto"
+	}
 }
