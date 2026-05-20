@@ -46,7 +46,9 @@ class $modify(MyPlayLayer, PlayLayer) {
         // Вместо смерти принудительно включаем стандартную игровую паузу
         if (g_noclipTimer <= 0.0f) {
             g_noclipTimer = -1.0f; // Ставим маркер, что пауза вызвана смертью
-            PlayLayer::pushButton(0, true); // Вызов стандартного меню паузы
+            
+            // Вызываем стандартное меню паузы через Geode API
+            this->onPause(nullptr); 
             return;
         }
 
