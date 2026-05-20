@@ -47,10 +47,9 @@ class $modify(MyPlayLayer, PlayLayer) {
         if (g_noclipTimer <= 0.0f) {
             g_noclipTimer = -1.0f; // Ставим маркер, что пауза вызвана смертью
             
-            // Самый безопасный способ вызвать паузу в Geode без прямых методов:
-            // Имитируем нажатие клавиши Esc/Назад через диспетчер клавиатуры
+            // Исправленный вызов паузы с 4 аргументами, как просит компилятор
             auto dispatcher = CCDirector::sharedDirector()->getKeyboardDispatcher();
-            dispatcher->dispatchKeyboardMSG(enumKeyCodes::KEY_Escape, true, false);
+            dispatcher->dispatchKeyboardMSG(enumKeyCodes::KEY_Escape, true, false, 0.0);
             return;
         }
 
