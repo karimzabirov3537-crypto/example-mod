@@ -5,55 +5,50 @@ using namespace geode::prelude;
 
 bool g_isNoclipActive = false;
 float g_noclipTimer = 0.0f;
+bool g_isPausingRightNow = false; // Новый маркер, чтобы не спамить паузу
 
 class $modify(MyPlayLayer, PlayLayer) {
-    // Используем безопасный игровой цикл для отсчета 5 секунд ноуклипа
     void update(float dt) {
         PlayLayer::update(dt);
 
         if (g_isNoclipActive) {
             g_noclipTimer -= dt;
 
-            // Пока ноуклип активен, делаем иконки игрока прозрачными (50%)
             if (m_player1) m_player1->setOpacity(100);
             if (m_player2) m_player2->setOpacity(100);
 
             if (g_noclipTimer <= 0.0f) {
                 g_isNoclipActive = false;
-
-                // Время вышло – возвращаем обычную полную непрозрачность (100%)
                 if (m_player1) m_player1->setOpacity(255);
                 if (m_player2) m_player2->setOpacity(255);
             }
         }
     }
 
-    // Хукаем продолжение игры после паузы
     void resumeAndStopPause() {
         PlayLayer::resume();
+        
+        g_isPausingRightNow = false; // Игрок снял с паузы — сбрасываем защиту
 
-        // Если игра была поставлена на паузу нашей смертью – активируем ноуклип
         if (g_noclipTimer == -1.0f) {
             g_isNoclipActive = true;
-            g_noclipTimer = 5.0f; // 5 секунд бессмертия
+            g_noclipTimer = 5.0f; 
         }
     }
 
     void destroyPlayer(PlayerObject* p0, GameObject* p1) {
-        // Если ноуклип уже активен – летим дальше
         if (g_isNoclipActive) return;
+        if (g_isPausingRightNow) return; // Если пауза УЖЕ нажимается в этом кадре — игнорируем смерть!
 
-        // Вместо смерти принудительно включаем стандартную игровую паузу
         if (g_noclipTimer <= 0.0f) {
-            g_noclipTimer = -1.0f; // Ставим маркер, что пауза вызвана смертью
+            g_noclipTimer = -1.0f; 
+            g_isPausingRightNow = true; // Запрещаем повторный вызов функции паузы
             
-            // Исправленный вызов паузы с 4 аргументами, как просит компилятор
             auto dispatcher = CCDirector::sharedDirector()->getKeyboardDispatcher();
             dispatcher->dispatchKeyboardMSG(enumKeyCodes::KEY_Escape, true, false, 0.0);
             return;
         }
 
-        // Если маркер сброшен – обычная смерть
         PlayLayer::destroyPlayer(p0, p1);
     }
 };
