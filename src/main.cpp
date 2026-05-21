@@ -69,8 +69,8 @@ class $modify(MyPlayLayer, PlayLayer) {
     }
 
     void destroyPlayer(PlayerObject* player, GameObject* object) {
-        // НАДЕЖНАЯ ЗАЩИТА: Если уровень физически еще не начался (игрок не поехал) — игнорируем смерть!
-        if (!m_hasLevelStarted) {
+        // НАДЕЖНАЯ ЗАЩИТА: Обращаемся к состоянию старта уровня через m_fields в Geode 5.7.1
+        if (m_fields && !m_fields->m_hasLevelStarted) {
             PlayLayer::destroyPlayer(player, object);
             return;
         }
