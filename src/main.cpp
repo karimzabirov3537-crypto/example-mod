@@ -88,8 +88,8 @@ class $modify(MyPlayLayer, PlayLayer) {
         if (g_deathSavedCount < 3) {
             g_isAwaitingDecision = true;
 
-            // Принудительно ставим игру на паузу, пока игрок думает
-            this->Cocos2dRenderLayer::create(); 
+            // Надежный и официальный способ поставить уровень на паузу в Geode SDK 5.7.1
+            this->pauseGame(true);
             
             // Создаем обработчик кнопок
             auto delegate = new MyAlertDelegate(player, object, this);
