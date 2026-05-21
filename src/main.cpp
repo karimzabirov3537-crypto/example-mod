@@ -11,7 +11,7 @@ float g_startTimer = 0.0f;        // Таймер защиты старта
 
 class $modify(MyPlayLayer, PlayLayer) {
     void update(float dt) {
-        // Если открыто окно WASTED, полностью останавливаем обновление игры (замораживаем её)
+        // Если открыто окно WASTED, полностью останавливаем обновление игры
         if (g_isPopupOpen) return;
 
         PlayLayer::update(dt);
@@ -57,7 +57,7 @@ class $modify(MyPlayLayer, PlayLayer) {
             g_isPopupOpen = true; // Замораживаем физику уровня
 
             // Создаем красивое Geode-окно с вопросом
-            geode::createQuickPopup(
+            auto popup = geode::createQuickPopup(
                 "WASTED",                     // Заголовок
                 "Are you sure want to die?",  // Текст вопроса
                 "No!", "Yes!",                // Кнопка 1 (false), Кнопка 2 (true)
@@ -76,6 +76,13 @@ class $modify(MyPlayLayer, PlayLayer) {
                     }
                 }
             );
+
+            // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно выводим окно поверх сцены уровня, чтобы оно стало видимым
+            if (popup) {
+                if (auto scene = cocos2d::CCScene::get()) {
+                    scene->addChild(popup, 500); // 500 гарантирует отображение на самом верхнем слое
+                }
+            }
             return;
         }
 
