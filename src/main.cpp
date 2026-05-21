@@ -11,45 +11,8 @@ float g_startTimer = 0.0f;        // Защита спавна
 
 class $modify(MyPlayLayer, PlayLayer) {
     void update(float dt) {
-        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Если открыто окно, полностью замирифицируем кадр
+        // Если открыто окно WASTED, полностью останавливаем обновление игры
         if (g_isPopupOpen) return;
-
-        // Проверяем, врезался ли игрок, ЕЩЕ ДО того, как игра успела его стереть
-        // m_isDead — это встроенное поле PlayLayer, определяющее факт аварии
-        if (m_isDead && !g_isNoclipActive && !g_isPopupOpen && g_startTimer >= 0.5f) {
-            if (g_reviveCount < 3) {
-                m_isDead = false;    // Отменяем смерть в текущем кадре
-                g_isPopupOpen = true; // Замораживаем физику мира
-
-                // Вызываем окно через очередь главного потока, чтобы дать Cocos2d прогрузить UI
-                Loader::get()->queueInMainThread([this]() {
-                    auto popup = geode::createQuickPopup(
-                        "WASTED",
-                        "Are you sure want to die?",
-                        "No!", "Yes!",
-                        [this](auto, bool clickedYes) {
-                            g_isPopupOpen = false; // Размораживаем обновление
-
-                            if (clickedYes) {
-                                g_reviveCount = 3; // Тратим все попытки
-                                this->destroyPlayer(m_player1, nullptr); // Умираем окончательно
-                            } else {
-                                g_reviveCount++;
-                                g_isNoclipActive = true;
-                                g_noclipTimer = 5.0f; // Включаем бессмертие на 5 сек
-                            }
-                        }
-                    );
-
-                    if (popup) {
-                        if (auto scene = cocos2d::CCScene::get()) {
-                            scene->addChild(popup, 1050); // Максимальный приоритет видимости
-                        }
-                    }
-                });
-                return;
-            }
-        }
 
         PlayLayer::update(dt);
         g_startTimer += dt;
@@ -70,7 +33,7 @@ class $modify(MyPlayLayer, PlayLayer) {
 
     void resetLevel() {
         PlayLayer::resetLevel();
-        // Сброс при рестарте уровня
+        // Сброс всех параметров при рестарте уровня
         g_reviveCount = 0;
         g_isPopupOpen = false;
         g_isNoclipActive = false;
@@ -78,18 +41,49 @@ class $modify(MyPlayLayer, PlayLayer) {
     }
 
     void destroyPlayer(PlayerObject* p0, GameObject* p1) {
-        // Если работает ноуклип или мы в режиме выбора — игнорируем урон
+        // Если работает ноуклип или мы уже выбираем в меню — игнорируем урон
         if (g_isNoclipActive || g_isPopupOpen) return;
 
-        // Если лимит жизней исчерпан (больше 3), отдаем управление стандартной смерти
-        if (g_reviveCount >= 3) {
+        // Защита первых 0.5 секунд после респавна
+        if (g_startTimer < 0.5f) {
             PlayLayer::destroyPlayer(p0, p1);
             return;
         }
-        
-        // В остальных случаях блокируем деструктор, так как за него отвечает проверка в update
-        if (g_startTimer < 0.5f) {
-            PlayLayer::destroyPlayer(p0, p1);
+
+        // Если лимит в 3 спасения ещё не исчерпан, перехватываем смерть
+        if (g_reviveCount < 3) {
+            g_isPopupOpen = true; // Замораживаем физику мира через update()
+
+            // Вызываем окно в главном потоке, чтобы избежать конфликтов отрисовки Cocos2d
+            Loader::get()->queueInMainThread([this, p0, p1]() {
+                auto popup = geode::createQuickPopup(
+                    "WASTED",
+                    "Are you sure want to die?",
+                    "No!", "Yes!",
+                    [this, p0, p1](auto, bool clickedYes) {
+                        g_isPopupOpen = false; // Размораживаем обновление
+
+                        if (clickedYes) {
+                            g_reviveCount = 3; // Тратим все попытки
+                            this->destroyPlayer(p0, p1); // Умираем окончательно
+                        } else {
+                            g_reviveCount++;
+                            g_isNoclipActive = true;
+                            g_noclipTimer = 5.0f; // Включаем бессмертие на 5 сек
+                        }
+                    }
+                );
+
+                if (popup) {
+                    if (auto scene = cocos2d::CCScene::get()) {
+                        scene->addChild(popup, 1050); // Максимальный приоритет видимости поверх уровня
+                    }
+                }
+            });
+            return; // Блокируем моментальный вызов оригинального экрана смерти
         }
+        
+        // Если 3 попытки уже потрачены, то просто умираем как обычно
+        PlayLayer::destroyPlayer(p0, p1);
     }
 };
