@@ -3,13 +3,12 @@
 
 using namespace geode::prelude;
 
-// Глобальные переменные для контроля логики
+// Глобальные переменные для контроля ноуклипа
 bool g_noclipActive = false;
 float g_noclipTimer = 0.0f;
-int g_deathSavedCount = 0;      // Счетчик: сколько раз мы спаслись
-bool g_isAwaitingDecision = false; // Блокиратор, чтобы окно не спамилось каждую микросекунду
+int g_deathSavedCount = 0;      
+bool g_isAwaitingDecision = false; 
 
-// Создаем кастомный делегат, который будет слушать, какую кнопку нажал игрок в окне
 class MyAlertDelegate : public FLAlertLayerProtocol {
 public:
     PlayerObject* m_player;
@@ -19,54 +18,61 @@ public:
     MyAlertDelegate(PlayerObject* p, GameObject* o, PlayLayer* l) 
         : m_player(p), m_object(o), m_layer(l) {}
 
-    // Метод срабатывает, когда игрок нажимает на кнопку в окне
     void FLAlert_Clicked(FLAlertLayer* alert, bool selectedSecondButton) override {
-        g_isAwaitingDecision = false; // Снимаем блокировку
+        g_isAwaitingDecision = false; 
 
         if (selectedSecondButton) {
-            // Игрок нажал "NO" (Вторая кнопка) -> Спасаем его!
+            // Нажали "NO" -> включаем временный ноуклип
             g_deathSavedCount++;
             g_noclipActive = true;
-            g_noclipTimer = 5.0f; // 5 секунд бессмертия
+            g_noclipTimer = 5.0f; 
 
-            // Делаем иконки прозрачными, чтобы было видно бессмертие
             if (m_player) {
                 m_player->setOpacity(100);
             }
             
-            // Снимаем игру с паузы и возвращаем в экшен
             m_layer->resume();
         } else {
-            // Игрок нажал "YES" (Первая кнопка) -> Убиваем по-честному
+            // Нажали "YES" -> убиваем по-честному
             if (m_layer) {
-                // Чтобы не уйти в бесконечный цикл, временно ставим счетчик на максимум
                 int tempCount = g_deathSavedCount;
                 g_deathSavedCount = 999; 
-                
                 m_layer->destroyPlayer(m_player, m_object);
-                
-                g_deathSavedCount = tempCount; // Возвращаем счетчик обратно
+                g_deathSavedCount = tempCount; 
             }
         }
     }
 };
 
+// Регистрируем кастомное поле структуры Geode, чтобы не ломать компилятор
 class $modify(MyPlayLayer, PlayLayer) {
+    struct Fields {
+        bool m_playerHasMoved = false;
+    };
     
-    // Обнуляем счетчик спасенных жизней при каждом старте или рестарте уровня
     bool init(GJGameLevel* level, bool useIndex, bool dontUseIndex) {
         if (!PlayLayer::init(level, useIndex, dontUseIndex)) return false;
         g_deathSavedCount = 0;
         g_noclipActive = false;
         g_noclipTimer = 0.0f;
         g_isAwaitingDecision = false;
+        m_fields->m_playerHasMoved = false; // При старте игрок еще стоит
         return true;
+    }
+
+    // Как только игрок совершает любое действие — уровень официально начался
+    void popleLayerWillPop() {
+        PlayLayer::popleLayerWillPop();
     }
 
     void update(float dt) {
         PlayLayer::update(dt);
 
-        // Таймер отсчета ноуклипа
+        // Если куб начал движение или сдвинулся по оси X — активируем маркер старта
+        if (m_player1 && m_player1->m_position.x > 10.0f) {
+            m_fields->m_playerHasMoved = true;
+        }
+
         if (g_noclipActive) {
             g_noclipTimer -= dt;
             if (g_noclipTimer <= 0.0f) {
@@ -78,37 +84,133 @@ class $modify(MyPlayLayer, PlayLayer) {
     }
 
     void destroyPlayer(PlayerObject* player, GameObject* object) {
-        // Если ноуклип активен — игнорируем шипы
-        if (g_noclipActive) return;
+        // ЖЕЛЕЗНАЯ ЗАЩИТА: Если игрок еще не проехал вперед ни на один пиксель — полностью игнорируем "смерть"
+        if (!m_fields->m_playerHasMoved) {
+            PlayLayer::destroyPlayer(player, object);
+            return;
+        }
 
-        // Если окно уже открыто и ждет ответа — ничего не делаем
+        if (g_noclipActive) return;
         if (g_isAwaitingDecision) return;
 
-        // ХИТРЫЙ ХАК: Ставим лимит 4 попытки. Самая первая на старте прожмет кнопку "No!" автоматически
-        if (g_deathSavedCount < 4) {
+        if (g_deathSavedCount < 3) {
             g_isAwaitingDecision = true;
-
-            // Надежный способ поставить уровень на паузу
             this->pauseGame(true);
             
-            // Создаем обработчик кнопок
             auto delegate = new MyAlertDelegate(player, object, this);
-
-            // Создаем встроенное окно Geometry Dash (FLAlertLayer) на английском языке
-            auto alert = FLAlertLayer::create(
-                delegate, 
-                "WASTED?", 
-                "Are you sure you want to die?", 
-                "Yes...", 
-                "No!", 
-                300.f
-            );
-            
+            auto alert = FLAlertLayer::create(delegate, "WASTED?", "Are you sure you want to die?", "Yes...", "No!", 300.f);
             alert->show();
             return;
         }
 
-        // Если 4 попытки уже потрачены — обычная смерть без вопросов
+        PlayLayer::destroyPlayer(player, object);
+    }
+};
+#include <Geode/Geode.hpp>
+#include <Geode/modify/PlayLayer.hpp>
+
+using namespace geode::prelude;
+
+// Глобальные переменные для контроля ноуклипа
+bool g_noclipActive = false;
+float g_noclipTimer = 0.0f;
+int g_deathSavedCount = 0;      
+bool g_isAwaitingDecision = false; 
+
+class MyAlertDelegate : public FLAlertLayerProtocol {
+public:
+    PlayerObject* m_player;
+    GameObject* m_object;
+    PlayLayer* m_layer;
+
+    MyAlertDelegate(PlayerObject* p, GameObject* o, PlayLayer* l) 
+        : m_player(p), m_object(o), m_layer(l) {}
+
+    void FLAlert_Clicked(FLAlertLayer* alert, bool selectedSecondButton) override {
+        g_isAwaitingDecision = false; 
+
+        if (selectedSecondButton) {
+            // Нажали "NO" -> включаем временный ноуклип
+            g_deathSavedCount++;
+            g_noclipActive = true;
+            g_noclipTimer = 5.0f; 
+
+            if (m_player) {
+                m_player->setOpacity(100);
+            }
+            
+            m_layer->resume();
+        } else {
+            // Нажали "YES" -> убиваем по-честному
+            if (m_layer) {
+                int tempCount = g_deathSavedCount;
+                g_deathSavedCount = 999; 
+                m_layer->destroyPlayer(m_player, m_object);
+                g_deathSavedCount = tempCount; 
+            }
+        }
+    }
+};
+
+// Регистрируем кастомное поле структуры Geode, чтобы не ломать компилятор
+class $modify(MyPlayLayer, PlayLayer) {
+    struct Fields {
+        bool m_playerHasMoved = false;
+    };
+    
+    bool init(GJGameLevel* level, bool useIndex, bool dontUseIndex) {
+        if (!PlayLayer::init(level, useIndex, dontUseIndex)) return false;
+        g_deathSavedCount = 0;
+        g_noclipActive = false;
+        g_noclipTimer = 0.0f;
+        g_isAwaitingDecision = false;
+        m_fields->m_playerHasMoved = false; // При старте игрок еще стоит
+        return true;
+    }
+
+    // Как только игрок совершает любое действие — уровень официально начался
+    void popleLayerWillPop() {
+        PlayLayer::popleLayerWillPop();
+    }
+
+    void update(float dt) {
+        PlayLayer::update(dt);
+
+        // Если куб начал движение или сдвинулся по оси X — активируем маркер старта
+        if (m_player1 && m_player1->m_position.x > 10.0f) {
+            m_fields->m_playerHasMoved = true;
+        }
+
+        if (g_noclipActive) {
+            g_noclipTimer -= dt;
+            if (g_noclipTimer <= 0.0f) {
+                g_noclipActive = false;
+                if (m_player1) m_player1->setOpacity(255);
+                if (m_player2) m_player2->setOpacity(255);
+            }
+        }
+    }
+
+    void destroyPlayer(PlayerObject* player, GameObject* object) {
+        // ЖЕЛЕЗНАЯ ЗАЩИТА: Если игрок еще не проехал вперед ни на один пиксель — полностью игнорируем "смерть"
+        if (!m_fields->m_playerHasMoved) {
+            PlayLayer::destroyPlayer(player, object);
+            return;
+        }
+
+        if (g_noclipActive) return;
+        if (g_isAwaitingDecision) return;
+
+        if (g_deathSavedCount < 3) {
+            g_isAwaitingDecision = true;
+            this->pauseGame(true);
+            
+            auto delegate = new MyAlertDelegate(player, object, this);
+            auto alert = FLAlertLayer::create(delegate, "WASTED?", "Are you sure you want to die?", "Yes...", "No!", 300.f);
+            alert->show();
+            return;
+        }
+
         PlayLayer::destroyPlayer(player, object);
     }
 };
