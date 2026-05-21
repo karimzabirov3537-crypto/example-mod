@@ -3,7 +3,6 @@
 
 using namespace geode::prelude;
 
-// Глобальные переменные для контроля ноуклипа
 bool g_noclipActive = false;
 float g_noclipTimer = 0.0f;
 int g_deathSavedCount = 0;      
@@ -12,17 +11,15 @@ bool g_isAwaitingDecision = false;
 class MyAlertDelegate : public FLAlertLayerProtocol {
 public:
     PlayerObject* m_player;
-    GameObject* m_object;
     PlayLayer* m_layer;
 
-    MyAlertDelegate(PlayerObject* p, GameObject* o, PlayLayer* l) 
-        : m_player(p), m_object(o), m_layer(l) {}
+    MyAlertDelegate(PlayerObject* p, PlayLayer* l) : m_player(p), m_layer(l) {}
 
     void FLAlert_Clicked(FLAlertLayer* alert, bool selectedSecondButton) override {
         g_isAwaitingDecision = false; 
 
         if (selectedSecondButton) {
-            // Нажали "NO" -> включаем временный ноуклип
+            // Нажали "NO" -> включаем временный ноуклип и возвращаем в игру
             g_deathSavedCount++;
             g_noclipActive = true;
             g_noclipTimer = 5.0f; 
@@ -33,39 +30,31 @@ public:
             
             m_layer->resume();
         } else {
-            // Нажали "YES" -> убиваем по-честному
+            // Нажали "YES" -> сбрасываем уровень, как игра и хотела
+            g_isAwaitingDecision = false;
             if (m_layer) {
-                int tempCount = g_deathSavedCount;
-                g_deathSavedCount = 999; 
-                m_layer->destroyPlayer(m_player, m_object);
-                g_deathSavedCount = tempCount; 
+                m_layer->resetLevel();
             }
         }
     }
 };
 
 class $modify(MyPlayLayer, PlayLayer) {
-    struct Fields {
-        int m_frameCount = 0; // Считаем кадры с начала уровня
-    };
     
     bool init(GJGameLevel* level, bool useIndex, bool dontUseIndex) {
         if (!PlayLayer::init(level, useIndex, dontUseIndex)) return false;
-        g_deathSavedCount = 0;
+        // Сбрасываем счётчик только при полной ручной перезагрузке уровня
+        if (g_deathSavedCount >= 3) {
+            g_deathSavedCount = 0;
+        }
         g_noclipActive = false;
         g_noclipTimer = 0.0f;
         g_isAwaitingDecision = false;
-        m_fields->m_frameCount = 0; 
         return true;
     }
 
     void update(float dt) {
         PlayLayer::update(dt);
-
-        // Каждый игровой кадр увеличиваем счетчик
-        if (m_fields->m_frameCount < 100) {
-            m_fields->m_frameCount++;
-        }
 
         if (g_noclipActive) {
             g_noclipTimer -= dt;
@@ -77,26 +66,26 @@ class $modify(MyPlayLayer, PlayLayer) {
         }
     }
 
-    void destroyPlayer(PlayerObject* player, GameObject* object) {
-        // НАДЕЖНАЯ ЗАЩИТА: Если прошло меньше 5 кадров с момента загрузки — это фейковый стартовый вызов. Игнорируем!
-        if (m_fields->m_frameCount < 5) {
-            PlayLayer::destroyPlayer(player, object);
-            return;
-        }
-
+    // Хукаем момент, когда игра ОФИЦИАЛЬНО запускает процесс перезапуска после смерти
+    void resetLevel() {
+        // Если ноуклип активен — просто продолжаем лететь
         if (g_noclipActive) return;
         if (g_isAwaitingDecision) return;
 
+        // Если лимит 3 жизней не исчерпан — перехватываем рестарт и выводим окно!
         if (g_deathSavedCount < 3) {
             g_isAwaitingDecision = true;
+            
+            // Замораживаем игру
             this->pauseGame(true);
             
-            auto delegate = new MyAlertDelegate(player, object, this);
+            auto delegate = new MyAlertDelegate(m_player1, this);
             auto alert = FLAlertLayer::create(delegate, "WASTED?", "Are you sure you want to die?", "Yes...", "No!", 300.f);
             alert->show();
             return;
         }
 
-        PlayLayer::destroyPlayer(player, object);
+        // Если попытки кончились — запускаем обычный рестарт
+        PlayLayer::resetLevel();
     }
 };
