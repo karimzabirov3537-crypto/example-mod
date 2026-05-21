@@ -54,8 +54,20 @@ class $modify(MyPlayLayer, PlayLayer) {
             g_noclipTimer = -1.0f;
             g_isPausingRightNow = true;
 
-            // ИСПРАВЛЕНО: Используем правильный метод Geode для вызова паузы
-            this->switchToPauseLayer();
+            // БЕЗОПАСНЫЙ СПОСОБ: Ищем кнопку паузы на UI-слое и вызываем её функцию клика напрямую
+            if (auto uiLayer = this->getChildByType<UILayer>(0)) {
+                if (auto pauseBtn = uiLayer->getChildByID("pause-button")) {
+                    // Симулируем нажатие кнопки паузы через Cocos2d
+                    if (auto btnItem = cocos2d::typeinfo_cast<cocos2d::CCMenuItem*>(pauseBtn)) {
+                        btnItem->activate();
+                        return;
+                    }
+                }
+            }
+
+            // Запасной вариант, если кнопка по ID не нашлась
+            PlayLayer::pushButton(1, true); 
+            PlayLayer::releaseButton(1, true);
             return;
         }
 
