@@ -4,11 +4,11 @@
 		"win": "2.2074",
 		"android": "2.2081"
 	},
-	"id": "karimzabirov3537.icon_randomizer",
-	"name": "Icon Randomizer Fix",
+	"id": "karimzabirov3537.death_asker",
+	"name": "Are You Sure You Want to Die?",
 	"developer": "KARIMZABIROV3537",
 	"version": "1.0.0",
-	"description": "Случайно меняет все иконки (включая Робота и Паука!) и цвета при каждой смерти.",
+	"description": "При смерти спрашивает, точно ли ты хочешь умереть. Дает 3 шанса на ноуклип!",
 	"platforms": {
 		"android": "auto"
 	}
