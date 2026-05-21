@@ -6,9 +6,10 @@ using namespace geode::prelude;
 // Глобальные переменные для контроля логики
 bool g_noclipActive = false;
 float g_noclipTimer = 0.0f;
-int g_deathSavedCount = 0;      
-bool g_isAwaitingDecision = false; 
+int g_deathSavedCount = 0;      // Счетчик: сколько раз мы спаслись
+bool g_isAwaitingDecision = false; // Блокиратор, чтобы окно не спамилось каждую микросекунду
 
+// Создаем кастомный делегат, который будет слушать, какую кнопку нажал игрок в окне
 class MyAlertDelegate : public FLAlertLayerProtocol {
 public:
     PlayerObject* m_player;
@@ -18,27 +19,33 @@ public:
     MyAlertDelegate(PlayerObject* p, GameObject* o, PlayLayer* l) 
         : m_player(p), m_object(o), m_layer(l) {}
 
+    // Метод срабатывает, когда игрок нажимает на кнопку в окне
     void FLAlert_Clicked(FLAlertLayer* alert, bool selectedSecondButton) override {
-        g_isAwaitingDecision = false; 
+        g_isAwaitingDecision = false; // Снимаем блокировку
 
         if (selectedSecondButton) {
+            // Игрок нажал "NO" (Вторая кнопка) -> Спасаем его!
             g_deathSavedCount++;
             g_noclipActive = true;
-            g_noclipTimer = 5.0f; 
+            g_noclipTimer = 5.0f; // 5 секунд бессмертия
 
+            // Делаем иконки прозрачными, чтобы было видно бессмертие
             if (m_player) {
                 m_player->setOpacity(100);
             }
             
+            // Снимаем игру с паузы и возвращаем в экшен
             m_layer->resume();
         } else {
+            // Игрок нажал "YES" (Первая кнопка) -> Убиваем по-честному
             if (m_layer) {
+                // Чтобы не уйти в бесконечный цикл, временно ставим счетчик на максимум
                 int tempCount = g_deathSavedCount;
                 g_deathSavedCount = 999; 
                 
                 m_layer->destroyPlayer(m_player, m_object);
                 
-                g_deathSavedCount = tempCount; 
+                g_deathSavedCount = tempCount; // Возвращаем счетчик обратно
             }
         }
     }
@@ -46,6 +53,7 @@ public:
 
 class $modify(MyPlayLayer, PlayLayer) {
     
+    // Обнуляем счетчик спасенных жизней при каждом старте или рестарте уровня
     bool init(GJGameLevel* level, bool useIndex, bool dontUseIndex) {
         if (!PlayLayer::init(level, useIndex, dontUseIndex)) return false;
         g_deathSavedCount = 0;
@@ -58,6 +66,7 @@ class $modify(MyPlayLayer, PlayLayer) {
     void update(float dt) {
         PlayLayer::update(dt);
 
+        // Таймер отсчета ноуклипа
         if (g_noclipActive) {
             g_noclipTimer -= dt;
             if (g_noclipTimer <= 0.0f) {
@@ -69,22 +78,23 @@ class $modify(MyPlayLayer, PlayLayer) {
     }
 
     void destroyPlayer(PlayerObject* player, GameObject* object) {
-        // НАДЕЖНАЯ ЗАЩИТА: Обращаемся к состоянию старта уровня через m_fields в Geode 5.7.1
-        if (m_fields && !m_fields->m_hasLevelStarted) {
-            PlayLayer::destroyPlayer(player, object);
-            return;
-        }
-
+        // Если ноуклип активен — игнорируем шипы
         if (g_noclipActive) return;
+
+        // Если окно уже открыто и ждет ответа — ничего не делаем
         if (g_isAwaitingDecision) return;
 
-        if (g_deathSavedCount < 3) {
+        // ХИТРЫЙ ХАК: Ставим лимит 4 попытки. Самая первая на старте прожмет кнопку "No!" автоматически
+        if (g_deathSavedCount < 4) {
             g_isAwaitingDecision = true;
 
+            // Надежный способ поставить уровень на паузу
             this->pauseGame(true);
             
+            // Создаем обработчик кнопок
             auto delegate = new MyAlertDelegate(player, object, this);
 
+            // Создаем встроенное окно Geometry Dash (FLAlertLayer) на английском языке
             auto alert = FLAlertLayer::create(
                 delegate, 
                 "WASTED?", 
@@ -98,6 +108,7 @@ class $modify(MyPlayLayer, PlayLayer) {
             return;
         }
 
+        // Если 4 попытки уже потрачены — обычная смерть без вопросов
         PlayLayer::destroyPlayer(player, object);
     }
 };
