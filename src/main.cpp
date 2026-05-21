@@ -44,10 +44,9 @@ public:
     }
 };
 
-// Регистрируем кастомное поле структуры Geode
 class $modify(MyPlayLayer, PlayLayer) {
     struct Fields {
-        bool m_playerHasMoved = false;
+        int m_frameCount = 0; // Считаем кадры с начала уровня
     };
     
     bool init(GJGameLevel* level, bool useIndex, bool dontUseIndex) {
@@ -56,16 +55,16 @@ class $modify(MyPlayLayer, PlayLayer) {
         g_noclipActive = false;
         g_noclipTimer = 0.0f;
         g_isAwaitingDecision = false;
-        m_fields->m_playerHasMoved = false; // При старте игрок еще стоит
+        m_fields->m_frameCount = 0; 
         return true;
     }
 
     void update(float dt) {
         PlayLayer::update(dt);
 
-        // Если куб начал движение по оси X — активируем маркер старта уровня
-        if (m_player1 && m_player1->m_position.x > 10.0f) {
-            m_fields->m_playerHasMoved = true;
+        // Каждый игровой кадр увеличиваем счетчик
+        if (m_fields->m_frameCount < 100) {
+            m_fields->m_frameCount++;
         }
 
         if (g_noclipActive) {
@@ -79,8 +78,8 @@ class $modify(MyPlayLayer, PlayLayer) {
     }
 
     void destroyPlayer(PlayerObject* player, GameObject* object) {
-        // Если игрок еще не проехал вперед ни на один пиксель — полностью игнорируем фейковую смерть
-        if (!m_fields->m_playerHasMoved) {
+        // НАДЕЖНАЯ ЗАЩИТА: Если прошло меньше 5 кадров с момента загрузки — это фейковый стартовый вызов. Игнорируем!
+        if (m_fields->m_frameCount < 5) {
             PlayLayer::destroyPlayer(player, object);
             return;
         }
