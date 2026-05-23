@@ -30,11 +30,9 @@ public:
             p1->m_isRobot = savedData["is_robot"].as<bool>().unwrapOrDefault();
             p1->m_isSpider = savedData["is_spider"].as<bool>().unwrapOrDefault();
             
-            // Восстановление размера и гравитации
+            // Восстановление размера и гравитации напрямую через переменные
             p1->m_isUpsideDown = savedData["is_upside_down"].as<bool>().unwrapOrDefault();
-            if (savedData["is_mini"].as<bool>().unwrapOrDefault()) {
-                p1->toggleMiniMode(true);
-            }
+            p1->m_isMini = savedData["is_mini"].as<bool>().unwrapOrDefault();
 
             p1->resetObject();
             m_layer->createCheckpoint(); 
@@ -108,19 +106,20 @@ class $modify(MyPlayLayer, PlayLayer) {
             save["is_robot"] = p1->m_isRobot;
             save["is_spider"] = p1->m_isSpider;
             
-            // Дополнительные параметры состояния
+            // Запись параметров состояния через стандартные поля
             save["is_upside_down"] = p1->m_isUpsideDown;
-            save["is_mini"] = p1->m_muffling; // Внутреннее поле Geode для состояния мини-мода
+            save["is_mini"] = p1->m_isMini;
 
             Mod::get()->setSavedValue(getSaveKey(levelID), save);
             Mod::get()->saveData();
         }
     }
 
-    void onDestroy() {
+    // Правильное название метода для очистки памяти при выходе со сцены
+    void onExit() {
         if (m_fields->m_delegate) {
             m_fields->m_delegate->release();
         }
-        PlayLayer::onDestroy();
+        PlayLayer::onExit();
     }
 };
