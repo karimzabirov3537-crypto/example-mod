@@ -7,27 +7,29 @@ std::string getSaveKey(int levelID) {
     return "platformer_save_level_" + std::to_string(levelID);
 }
 
-// Наследуемся от FLAlertLayerProtocol, чтобы компилятор не ругался на тип делегата
 class CheckpointLoadDelegate : public CCObject, public FLAlertLayerProtocol {
 public:
     PlayLayer* m_layer;
     
-    // Метод, который Geode/Cocos вызывает при нажатии на вторую кнопку (ОК)
     void FLAlert_Clicked(FLAlertLayer* alert, bool btn2) override {
         if (btn2 && m_layer) {
             int levelID = m_layer->m_level->m_levelID;
             auto savedData = Mod::get()->getSavedValue<matjson::Value>(getSaveKey(levelID));
 
-            // .unwrapOrDefault() безопасно извлекает double, если парсинг прошел успешно
             float posX = static_cast<float>(savedData["player_x"].as<double>().unwrapOrDefault());
             float posY = static_cast<float>(savedData["player_y"].as<double>().unwrapOrDefault());
             
             if (m_layer->m_player1) {
                 m_layer->m_player1->m_position = ccp(posX, posY);
+                // Принудительно обновляем физику объекта, чтобы он не провалился в текстуры
+                m_layer->m_player1->resetObject();
             }
 
+            // Создаем чекпоинт в игре на этих координатах
             m_layer->createCheckpoint(); 
-            log::info("Successfully loaded checkpoint at: {}, {}", posX, posY);
+            
+            // Логируем в консоль Geode для проверки работы
+            log::info("Successfully loaded checkpoint from file at: {}, {}", posX, posY);
         }
     }
 
@@ -54,19 +56,17 @@ class $modify(MyPlayLayer, PlayLayer) {
         return true;
     }
 
-    void showNewBest(bool p0, int p1, int p2, bool p3, bool p4, bool p5) {
-        PlayLayer::showNewBest(p0, p1, p2, p3, p4, p5);
+    // Юзаем метод обновления интерфейса — он гарантирует, что уровень уже полностью загрузился
+    void updateProgressbar() {
+        PlayLayer::updateProgressbar();
 
-        if (!m_fields->m_hasCheckedLoad && this->m_level->isPlatformer()) {
+        if (!m_fields->m_hasCheckedLoad && this->m_level && this->m_level->isPlatformer()) {
             m_fields->m_hasCheckedLoad = true;
             
             int levelID = this->m_level->m_levelID;
             auto savedData = Mod::get()->getSavedValue<matjson::Value>(getSaveKey(levelID));
 
-            // Проверяем наличие флага сохранения через unwrapOrDefault
             if (savedData.contains("has_save") && savedData["has_save"].as<bool>().unwrapOrDefault()) {
-                
-                // Используем правильный порядок аргументов и сигнатуру Geode
                 auto alert = FLAlertLayer::create(
                     m_fields->m_delegate,
                     "Load Save",
@@ -74,32 +74,37 @@ class $modify(MyPlayLayer, PlayLayer) {
                     "Cancel", "OK",
                     320.f
                 );
-                
                 alert->show();
             }
         }
     }
 
-    void onQuit() {
-        if (this->m_level && this->m_level->isPlatformer() && this->m_checkpointArray && this->m_checkpointArray->count() > 0) {
+    // ХУК: Сохраняем данные СРАЗУ, как только ставится чекпоинт
+    void createCheckpoint() {
+        PlayLayer::createCheckpoint();
+
+        // Проверяем, что это платформер и игрок существует
+        if (this->m_level && this->m_level->isPlatformer() && this->m_player1) {
             int levelID = this->m_level->m_levelID;
             
             matjson::Value save;
             save["has_save"] = true;
-            
-            if (this->m_player1) {
-                save["player_x"] = this->m_player1->m_position.x;
-                save["player_y"] = this->m_player1->m_position.y;
-            }
+            save["player_x"] = this->m_player1->m_position.x;
+            save["player_y"] = this->m_player1->m_position.y;
 
+            // Моментально пишем в локальный файл конфигурации мода
             Mod::get()->setSavedValue(getSaveKey(levelID), save);
             Mod::get()->saveData();
+            
+            log::info("Checkpoint autosaved to config for level {}", levelID);
         }
+    }
 
+    // Очищаем память
+    void onDestroy() {
         if (m_fields->m_delegate) {
             m_fields->m_delegate->release();
         }
-
-        PlayLayer::onQuit();
+        PlayLayer::onDestroy();
     }
 };
