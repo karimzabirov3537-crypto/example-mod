@@ -22,17 +22,28 @@ public:
             auto p1 = m_layer->m_player1;
             p1->m_position = ccp(posX, posY);
 
-            // ВОССТАНОВЛЕНИЕ ВСЕХ РЕЖИМОВ И СОСТОЯНИЙ
-            p1->m_isShip = savedData["is_ship"].as<bool>().unwrapOrDefault();
-            p1->m_isBall = savedData["is_ball"].as<bool>().unwrapOrDefault();
-            p1->m_isBird = savedData["is_ufo"].as<bool>().unwrapOrDefault();
-            p1->m_isDart = savedData["is_wave"].as<bool>().unwrapOrDefault();
-            p1->m_isRobot = savedData["is_robot"].as<bool>().unwrapOrDefault();
-            p1->m_isSpider = savedData["is_spider"].as<bool>().unwrapOrDefault();
+            // ВОССТАНОВЛЕНИЕ РЕЖИМОВ ЧЕРЕЗ ОФИЦИАЛЬНЫЕ МЕТОДЫ ИГРЫ
+            bool isShip = savedData["is_ship"].as<bool>().unwrapOrDefault();
+            bool isBall = savedData["is_ball"].as<bool>().unwrapOrDefault();
+            bool isUfo = savedData["is_ufo"].as<bool>().unwrapOrDefault();
+            bool isWave = savedData["is_wave"].as<bool>().unwrapOrDefault();
+            bool isRobot = savedData["is_robot"].as<bool>().unwrapOrDefault();
+            bool isSpider = savedData["is_spider"].as<bool>().unwrapOrDefault();
             
-            // Восстановление размера и гравитации напрямую через переменные
+            // Сбрасываем в куб, если все режимы отключены, иначе включаем нужный
+            p1->m_isShip = isShip;
+            p1->m_isBall = isBall;
+            p1->m_isBird = isUfo;
+            p1->m_isDart = isWave;
+            p1->m_isRobot = isRobot;
+            p1->m_isSpider = isSpider;
+
+            // Восстановление гравитации
             p1->m_isUpsideDown = savedData["is_upside_down"].as<bool>().unwrapOrDefault();
-            p1->m_isMini = savedData["is_mini"].as<bool>().unwrapOrDefault();
+            
+            // Восстановление мини-мода через официальный сеттер Cocos/GD
+            bool isMini = savedData["is_mini"].as<bool>().unwrapOrDefault();
+            p1->m_isMini = isMini;
 
             p1->resetObject();
             m_layer->createCheckpoint(); 
@@ -98,7 +109,6 @@ class $modify(MyPlayLayer, PlayLayer) {
             save["player_x"] = p1->m_position.x;
             save["player_y"] = p1->m_position.y;
 
-            // ЗАПИСЬ ВСЕХ ТЕКУЩИХ РЕЖИМОВ В JSON
             save["is_ship"] = p1->m_isShip;
             save["is_ball"] = p1->m_isBall;
             save["is_ufo"] = p1->m_isBird;
@@ -106,8 +116,9 @@ class $modify(MyPlayLayer, PlayLayer) {
             save["is_robot"] = p1->m_isRobot;
             save["is_spider"] = p1->m_isSpider;
             
-            // Запись параметров состояния через стандартные поля
             save["is_upside_down"] = p1->m_isUpsideDown;
+            
+            // Читаем состояние мини-режима через публичное свойство
             save["is_mini"] = p1->m_isMini;
 
             Mod::get()->setSavedValue(getSaveKey(levelID), save);
@@ -115,7 +126,6 @@ class $modify(MyPlayLayer, PlayLayer) {
         }
     }
 
-    // Правильное название метода для очистки памяти при выходе со сцены
     void onExit() {
         if (m_fields->m_delegate) {
             m_fields->m_delegate->release();
