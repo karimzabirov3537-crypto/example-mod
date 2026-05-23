@@ -12,24 +12,34 @@ public:
     PlayLayer* m_layer;
     
     void FLAlert_Clicked(FLAlertLayer* alert, bool btn2) override {
-        if (btn2 && m_layer) {
+        if (btn2 && m_layer && m_layer->m_player1) {
             int levelID = m_layer->m_level->m_levelID;
             auto savedData = Mod::get()->getSavedValue<matjson::Value>(getSaveKey(levelID));
 
             float posX = static_cast<float>(savedData["player_x"].as<double>().unwrapOrDefault());
             float posY = static_cast<float>(savedData["player_y"].as<double>().unwrapOrDefault());
             
-            if (m_layer->m_player1) {
-                m_layer->m_player1->m_position = ccp(posX, posY);
-                // Принудительно обновляем физику объекта, чтобы он не провалился в текстуры
-                m_layer->m_player1->resetObject();
+            auto p1 = m_layer->m_player1;
+            p1->m_position = ccp(posX, posY);
+
+            // ВОССТАНОВЛЕНИЕ ВСЕХ РЕЖИМОВ И СОСТОЯНИЙ
+            p1->m_isShip = savedData["is_ship"].as<bool>().unwrapOrDefault();
+            p1->m_isBall = savedData["is_ball"].as<bool>().unwrapOrDefault();
+            p1->m_isBird = savedData["is_ufo"].as<bool>().unwrapOrDefault();
+            p1->m_isDart = savedData["is_wave"].as<bool>().unwrapOrDefault();
+            p1->m_isRobot = savedData["is_robot"].as<bool>().unwrapOrDefault();
+            p1->m_isSpider = savedData["is_spider"].as<bool>().unwrapOrDefault();
+            
+            // Восстановление размера и гравитации
+            p1->m_isUpsideDown = savedData["is_upside_down"].as<bool>().unwrapOrDefault();
+            if (savedData["is_mini"].as<bool>().unwrapOrDefault()) {
+                p1->toggleMiniMode(true);
             }
 
-            // Создаем чекпоинт в игре на этих координатах
+            p1->resetObject();
             m_layer->createCheckpoint(); 
             
-            // Логируем в консоль Geode для проверки работы
-            log::info("Successfully loaded checkpoint from file at: {}, {}", posX, posY);
+            log::info("Successfully loaded state at: {}, {}", posX, posY);
         }
     }
 
@@ -56,7 +66,6 @@ class $modify(MyPlayLayer, PlayLayer) {
         return true;
     }
 
-    // Юзаем метод обновления интерфейса — он гарантирует, что уровень уже полностью загрузился
     void updateProgressbar() {
         PlayLayer::updateProgressbar();
 
@@ -79,28 +88,35 @@ class $modify(MyPlayLayer, PlayLayer) {
         }
     }
 
-    // ХУК: Сохраняем данные СРАЗУ, как только ставится чекпоинт
     void createCheckpoint() {
         PlayLayer::createCheckpoint();
 
-        // Проверяем, что это платформер и игрок существует
         if (this->m_level && this->m_level->isPlatformer() && this->m_player1) {
             int levelID = this->m_level->m_levelID;
+            auto p1 = this->m_player1;
             
             matjson::Value save;
             save["has_save"] = true;
-            save["player_x"] = this->m_player1->m_position.x;
-            save["player_y"] = this->m_player1->m_position.y;
+            save["player_x"] = p1->m_position.x;
+            save["player_y"] = p1->m_position.y;
 
-            // Моментально пишем в локальный файл конфигурации мода
+            // ЗАПИСЬ ВСЕХ ТЕКУЩИХ РЕЖИМОВ В JSON
+            save["is_ship"] = p1->m_isShip;
+            save["is_ball"] = p1->m_isBall;
+            save["is_ufo"] = p1->m_isBird;
+            save["is_wave"] = p1->m_isDart;
+            save["is_robot"] = p1->m_isRobot;
+            save["is_spider"] = p1->m_isSpider;
+            
+            // Дополнительные параметры состояния
+            save["is_upside_down"] = p1->m_isUpsideDown;
+            save["is_mini"] = p1->m_muffling; // Внутреннее поле Geode для состояния мини-мода
+
             Mod::get()->setSavedValue(getSaveKey(levelID), save);
             Mod::get()->saveData();
-            
-            log::info("Checkpoint autosaved to config for level {}", levelID);
         }
     }
 
-    // Очищаем память
     void onDestroy() {
         if (m_fields->m_delegate) {
             m_fields->m_delegate->release();
