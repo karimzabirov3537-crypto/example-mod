@@ -7,25 +7,28 @@ std::string getSaveKey(int levelID) {
     return "platformer_save_level_" + std::to_string(levelID);
 }
 
-class CheckpointLoadDelegate : public CCObject {
+// Наследуемся от FLAlertLayerProtocol, чтобы компилятор не ругался на тип делегата
+class CheckpointLoadDelegate : public CCObject, public FLAlertLayerProtocol {
 public:
     PlayLayer* m_layer;
     
-    void onConfirm(CCObject* sender) {
-        if (!m_layer) return;
+    // Метод, который Geode/Cocos вызывает при нажатии на вторую кнопку (ОК)
+    void FLAlert_Clicked(FLAlertLayer* alert, bool btn2) override {
+        if (btn2 && m_layer) {
+            int levelID = m_layer->m_level->m_levelID;
+            auto savedData = Mod::get()->getSavedValue<matjson::Value>(getSaveKey(levelID));
 
-        int levelID = m_layer->m_level->m_levelID;
-        auto savedData = Mod::get()->getSavedValue<matjson::Value>(getSaveKey(levelID));
+            // .unwrapOrDefault() безопасно извлекает double, если парсинг прошел успешно
+            float posX = static_cast<float>(savedData["player_x"].as<double>().unwrapOrDefault());
+            float posY = static_cast<float>(savedData["player_y"].as<double>().unwrapOrDefault());
+            
+            if (m_layer->m_player1) {
+                m_layer->m_player1->m_position = ccp(posX, posY);
+            }
 
-        float posX = static_cast<float>(savedData["player_x"].as<double>());
-        float posY = static_cast<float>(savedData["player_y"].as<double>());
-        
-        if (m_layer->m_player1) {
-            m_layer->m_player1->m_position = ccp(posX, posY);
+            m_layer->createCheckpoint(); 
+            log::info("Successfully loaded checkpoint at: {}, {}", posX, posY);
         }
-
-        m_layer->createCheckpoint(); 
-        log::info("Successfully loaded checkpoint at: {}, {}", posX, posY);
     }
 
     static CheckpointLoadDelegate* create(PlayLayer* layer) {
@@ -60,15 +63,16 @@ class $modify(MyPlayLayer, PlayLayer) {
             int levelID = this->m_level->m_levelID;
             auto savedData = Mod::get()->getSavedValue<matjson::Value>(getSaveKey(levelID));
 
-            if (savedData.contains("has_save") && savedData["has_save"].as<bool>()) {
+            // Проверяем наличие флага сохранения через unwrapOrDefault
+            if (savedData.contains("has_save") && savedData["has_save"].as<bool>().unwrapOrDefault()) {
                 
-                // Текст переведен на английский, чтобы избежать краша шрифтов игры
+                // Используем правильный порядок аргументов и сигнатуру Geode
                 auto alert = FLAlertLayer::create(
                     m_fields->m_delegate,
                     "Load Save",
                     "A checkpoint save was found from your previous session. Do you want to <cg>continue</c>?",
                     "Cancel", "OK",
-                    320.f 
+                    320.f
                 );
                 
                 alert->show();
