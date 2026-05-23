@@ -7,7 +7,6 @@ std::string getSaveKey(int levelID) {
     return "platformer_save_level_" + std::to_string(levelID);
 }
 
-// Создаем отдельный класс-делегат для обработки нажатий кнопок в окне
 class CheckpointLoadDelegate : public CCObject {
 public:
     PlayLayer* m_layer;
@@ -18,7 +17,6 @@ public:
         int levelID = m_layer->m_level->m_levelID;
         auto savedData = Mod::get()->getSavedValue<matjson::Value>(getSaveKey(levelID));
 
-        // В matjson для Geode v3 правильное приведение типов делается через .as<double>()
         float posX = static_cast<float>(savedData["player_x"].as<double>());
         float posY = static_cast<float>(savedData["player_y"].as<double>());
         
@@ -27,7 +25,7 @@ public:
         }
 
         m_layer->createCheckpoint(); 
-        log::info("Успешно загрузили чекпоинт на позиции: {}, {}", posX, posY);
+        log::info("Successfully loaded checkpoint at: {}, {}", posX, posY);
     }
 
     static CheckpointLoadDelegate* create(PlayLayer* layer) {
@@ -39,7 +37,6 @@ public:
 };
 
 class $modify(MyPlayLayer, PlayLayer) {
-    // ОФИЦИАЛЬНЫЙ СПОСОБ GEODE ДЛЯ ДЕКЛАРАЦИИ ПЕРЕМЕННЫХ
     struct Fields {
         bool m_hasCheckedLoad = false;
         CheckpointLoadDelegate* m_delegate = nullptr;
@@ -50,7 +47,7 @@ class $modify(MyPlayLayer, PlayLayer) {
         
         m_fields->m_hasCheckedLoad = false;
         m_fields->m_delegate = CheckpointLoadDelegate::create(this);
-        m_fields->m_delegate->retain(); // Удерживаем в памяти
+        m_fields->m_delegate->retain(); 
         return true;
     }
 
@@ -65,13 +62,13 @@ class $modify(MyPlayLayer, PlayLayer) {
 
             if (savedData.contains("has_save") && savedData["has_save"].as<bool>()) {
                 
-                // Исправленный вызов FLAlertLayer::create по правилам Geode API
+                // Текст переведен на английский, чтобы избежать краша шрифтов игры
                 auto alert = FLAlertLayer::create(
                     m_fields->m_delegate,
-                    "Загрузка",
-                    "Найдено сохранение чекпоинта с прошлого сеанса. Хотите продолжить?",
-                    "Отмена", "ОК",
-                    300.f // Ширина окна
+                    "Load Save",
+                    "A checkpoint save was found from your previous session. Do you want to <cg>continue</c>?",
+                    "Cancel", "OK",
+                    320.f 
                 );
                 
                 alert->show();
@@ -95,7 +92,6 @@ class $modify(MyPlayLayer, PlayLayer) {
             Mod::get()->saveData();
         }
 
-        // Освобождаем память делегата перед выходом
         if (m_fields->m_delegate) {
             m_fields->m_delegate->release();
         }
