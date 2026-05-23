@@ -4,11 +4,11 @@
 		"win": "2.2074",
 		"android": "2.2081"
 	},
-	"id": "karimzabirov3537.death_asker",
+	"id": "karimzabirov3537.hardcore",
 	"name": "Are You Sure You Want to Die?",
-	"developer": "KARIMZABIROV3537",
+	"developer": "KARIMZABIROV123",
 	"version": "1.0.0",
-	"description": "При смерти спрашивает, точно ли ты хочешь умереть. Дает 3 шанса на ноуклип!",
+	"description": "bro,hardcore!",
 	"platforms": {
 		"android": "auto"
 	}
