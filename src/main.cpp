@@ -7,45 +7,28 @@ std::string getSaveKey(int levelID) {
     return "platformer_save_level_" + std::to_string(levelID);
 }
 
+// Создаем делегат для обработки ответа в окне (ОК/Отмена) по стандартам Geode 5
 class CheckpointLoadDelegate : public CCObject, public FLAlertLayerProtocol {
 public:
     PlayLayer* m_layer;
     
     void FLAlert_Clicked(FLAlertLayer* alert, bool btn2) override {
+        // Если пользователь нажал вторую кнопку ("ОК")
         if (btn2 && m_layer && m_layer->m_player1) {
             int levelID = m_layer->m_level->m_levelID;
             auto savedData = Mod::get()->getSavedValue<matjson::Value>(getSaveKey(levelID));
 
-            float posX = static_cast<float>(savedData["player_x"].as<double>().unwrapOrDefault());
-            float posY = static_cast<float>(savedData["player_y"].as<double>().unwrapOrDefault());
+            // Извлекаем сохраненную позицию кубика
+            float posX = static_cast<float>(savedData["player_x"].asDouble().unwrapOrDefault());
+            float posY = static_cast<float>(savedData["player_y"].asDouble().unwrapOrDefault());
             
-            auto p1 = m_layer->m_player1;
-            p1->m_position = ccp(posX, posY);
+            // Восстанавливаем позицию игрока
+            m_layer->m_player1->m_position = ccp(posX, posY);
 
-            // ВОССТАНОВЛЕНИЕ РЕЖИМОВ ЧЕРЕЗ ОФИЦИАЛЬНЫЕ МЕТОДЫ ИГРЫ
-            bool isShip = savedData["is_ship"].as<bool>().unwrapOrDefault();
-            bool isBall = savedData["is_ball"].as<bool>().unwrapOrDefault();
-            bool isUfo = savedData["is_ufo"].as<bool>().unwrapOrDefault();
-            bool isWave = savedData["is_wave"].as<bool>().unwrapOrDefault();
-            bool isRobot = savedData["is_robot"].as<bool>().unwrapOrDefault();
-            bool isSpider = savedData["is_spider"].as<bool>().unwrapOrDefault();
-            
-            // Сбрасываем в куб, если все режимы отключены, иначе включаем нужный
-            p1->m_isShip = isShip;
-            p1->m_isBall = isBall;
-            p1->m_isBird = isUfo;
-            p1->m_isDart = isWave;
-            p1->m_isRobot = isRobot;
-            p1->m_isSpider = isSpider;
+            // Безопасно обновляем физическое тело персонажа на сцене
+            m_layer->m_player1->resetObject();
 
-            // Восстановление гравитации
-            p1->m_isUpsideDown = savedData["is_upside_down"].as<bool>().unwrapOrDefault();
-            
-            // Восстановление мини-мода через официальный сеттер Cocos/GD
-            bool isMini = savedData["is_mini"].as<bool>().unwrapOrDefault();
-            p1->m_isMini = isMini;
-
-            p1->resetObject();
+            // Создаем официальный чекпоинт игры в этой точке
             m_layer->createCheckpoint(); 
             
             log::info("Successfully loaded state at: {}, {}", posX, posY);
@@ -71,10 +54,11 @@ class $modify(MyPlayLayer, PlayLayer) {
         
         m_fields->m_hasCheckedLoad = false;
         m_fields->m_delegate = CheckpointLoadDelegate::create(this);
-        m_fields->m_delegate->retain(); 
+        m_fields->m_delegate->retain(); // Защищаем от случайного удаления из памяти
         return true;
     }
 
+    // В Geode 5 этот метод гарантирует, что весь UI уровня готов к отрисовке всплывающих окон
     void updateProgressbar() {
         PlayLayer::updateProgressbar();
 
@@ -84,7 +68,8 @@ class $modify(MyPlayLayer, PlayLayer) {
             int levelID = this->m_level->m_levelID;
             auto savedData = Mod::get()->getSavedValue<matjson::Value>(getSaveKey(levelID));
 
-            if (savedData.contains("has_save") && savedData["has_save"].as<bool>().unwrapOrDefault()) {
+            // Проверяем наличие файла сохранения
+            if (savedData.contains("has_save") && savedData["has_save"].asBool().unwrapOrDefault()) {
                 auto alert = FLAlertLayer::create(
                     m_fields->m_delegate,
                     "Load Save",
@@ -97,35 +82,26 @@ class $modify(MyPlayLayer, PlayLayer) {
         }
     }
 
+    // Каждый раз, когда игрок прыгает на чекпоинт, мы мгновенно обновляем конфиг
     void createCheckpoint() {
         PlayLayer::createCheckpoint();
 
         if (this->m_level && this->m_level->isPlatformer() && this->m_player1) {
             int levelID = this->m_level->m_levelID;
-            auto p1 = this->m_player1;
             
             matjson::Value save;
             save["has_save"] = true;
-            save["player_x"] = p1->m_position.x;
-            save["player_y"] = p1->m_position.y;
-
-            save["is_ship"] = p1->m_isShip;
-            save["is_ball"] = p1->m_isBall;
-            save["is_ufo"] = p1->m_isBird;
-            save["is_wave"] = p1->m_isDart;
-            save["is_robot"] = p1->m_isRobot;
-            save["is_spider"] = p1->m_isSpider;
-            
-            save["is_upside_down"] = p1->m_isUpsideDown;
-            
-            // Читаем состояние мини-режима через публичное свойство
-            save["is_mini"] = p1->m_isMini;
+            save["player_x"] = this->m_player1->m_position.x;
+            save["player_y"] = this->m_player1->m_position.y;
 
             Mod::get()->setSavedValue(getSaveKey(levelID), save);
             Mod::get()->saveData();
+            
+            log::info("Position auto-saved to mod config for level {}", levelID);
         }
     }
 
+    // Освобождаем ресурсы при выходе из уровня
     void onExit() {
         if (m_fields->m_delegate) {
             m_fields->m_delegate->release();
@@ -133,3 +109,4 @@ class $modify(MyPlayLayer, PlayLayer) {
         PlayLayer::onExit();
     }
 };
+
