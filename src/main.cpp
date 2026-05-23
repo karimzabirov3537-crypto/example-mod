@@ -55,8 +55,8 @@ class $modify(MyPlayLayer, PlayLayer) {
             // Записываем данные в кэш мода
             Mod::get()->setSavedValue(getSaveKey(levelID), save);
             
-            // В Geode 5 метод flushSavedValues() ПРИНУДИТЕЛЬНО и намертво записывает файл на диск прямо сейчас!
-            Mod::get()->flushSavedValues();
+            // В Geode 5 метод flushSavedValues() ПРИНУДИТЕЛЬНО и намертво записывает файл на диск прямо сейчас
+            Mod::get()->saveData();
             
             log::info("[AutoSave] Saved and Flushed coordinates for level {}", levelID);
         }
